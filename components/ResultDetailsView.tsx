@@ -7,6 +7,7 @@ import {
   ScanResult,
   URLAnalysisResult,
   EmailAnalysisResult,
+  EmailLeakResult,
   ExtractedUrl
 } from '@/types/security';
 import CircularRiskScore from './CircularRiskScore';
@@ -16,20 +17,20 @@ import VirusTotalCard from './VirusTotalCard';
 import Timeline from './Timeline';
 import RecommendationsCard from './RecommendationsCard';
 import {
-  ShieldAlert,
-  ShieldCheck,
   Globe,
   Mail,
   ArrowLeft,
-  Share2,
   Download,
   AlertTriangle,
-  ExternalLink,
   Search,
   CheckCircle2,
   Copy,
   Check,
-  FileText
+  Database,
+  Lock,
+  Key,
+  ShieldAlert,
+  AlertOctagon
 } from 'lucide-react';
 import { getRiskVerdict } from '@/lib/riskEngine';
 
@@ -43,8 +44,12 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
   const [analyzingUrl, setAnalyzingUrl] = useState<string | null>(null);
 
   const isUrl = scan.type === 'URL';
+  const isEmail = scan.type === 'EMAIL';
+  const isLeak = scan.type === 'EMAIL_LEAK';
+
   const urlScan = isUrl ? (scan as URLAnalysisResult) : null;
-  const emailScan = !isUrl ? (scan as EmailAnalysisResult) : null;
+  const emailScan = isEmail ? (scan as EmailAnalysisResult) : null;
+  const leakScan = isLeak ? (scan as EmailLeakResult) : null;
 
   const verdictText = getRiskVerdict(scan.classification);
 
@@ -86,29 +91,29 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 font-mono">
       {/* Top Header Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-emerald-950 pb-3">
         <Link
           href="/history"
-          className="inline-flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-cyan-400 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-400 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Scan History</span>
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>[←] Back to Audit Log</span>
         </Link>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleCopyLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs border border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#0b1410] hover:bg-[#12201a] text-slate-300 text-xs border border-emerald-950 transition-colors"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Link Copied' : 'Share Report'}</span>
+            <span>{copied ? 'Copied' : 'Share IOC'}</span>
           </button>
 
           <button
             onClick={handleExportJson}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs border border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#0b1410] hover:bg-[#12201a] text-slate-300 text-xs border border-emerald-950 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export JSON</span>
@@ -116,26 +121,26 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
 
           <Link
             href="/scan"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs transition-colors shadow-[0_0_12px_rgba(34,211,238,0.25)]"
+            className="flex items-center gap-1.5 px-3.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs uppercase transition-all shadow-[0_0_10px_rgba(16,185,129,0.3)]"
           >
             <Search className="w-3.5 h-3.5" />
-            <span>New Scan</span>
+            <span>New Triage</span>
           </Link>
         </div>
       </div>
 
       {/* Target Identity Banner */}
-      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl space-y-3">
+      <div className="p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 shadow-lg space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-400 border border-slate-700 font-bold">
-              REPORT ID: {scan.id}
+            <span className="text-[10px] px-2 py-0.5 rounded bg-[#080d0b] text-emerald-400 border border-emerald-900 font-bold">
+              REPORT_ID: {scan.id}
             </span>
-            <span className="text-[10px] font-mono text-slate-400">
+            <span className="text-[10px] text-slate-500">
               {new Date(scan.timestamp).toLocaleString()}
             </span>
             {scan.isDemo && (
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
                 DEMO DATA
               </span>
             )}
@@ -145,29 +150,40 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
         </div>
 
         <div className="space-y-1">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-            {isUrl ? 'Target Web Destination' : 'Analyzed Email Subject'}
+          <span className="text-[10px] uppercase text-emerald-500/80 font-bold block">
+            {isUrl
+              ? 'Target Web Destination'
+              : isEmail
+              ? 'Subject Line'
+              : 'Target Mailbox Identity'}
           </span>
-          <div className="font-mono text-base sm:text-lg font-bold text-white break-all flex items-center gap-2">
-            {isUrl ? (
+          <div className="text-base sm:text-lg font-bold text-white break-all flex items-center gap-2">
+            {isUrl && (
               <>
-                <Globe className="w-5 h-5 text-cyan-400 shrink-0" />
+                <Globe className="w-5 h-5 text-emerald-400 shrink-0" />
                 <span>{scan.target}</span>
               </>
-            ) : (
+            )}
+            {isEmail && (
               <>
-                <Mail className="w-5 h-5 text-cyan-400 shrink-0" />
+                <Mail className="w-5 h-5 text-emerald-400 shrink-0" />
                 <span>{emailScan?.subject}</span>
+              </>
+            )}
+            {isLeak && (
+              <>
+                <Database className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>{leakScan?.email}</span>
               </>
             )}
           </div>
         </div>
 
-        {/* Email specific sender metadata */}
+        {/* Email Header Details */}
         {emailScan && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs font-mono border-t border-slate-800/80">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs border-t border-emerald-950">
             <div>
-              <span className="text-slate-500">From Address:</span>{' '}
+              <span className="text-slate-500">From:</span>{' '}
               <span className="text-slate-200">{emailScan.from}</span>
             </div>
             {emailScan.replyTo && (
@@ -178,10 +194,32 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
             )}
           </div>
         )}
+
+        {/* Email Leak Target Details */}
+        {leakScan && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 text-xs border-t border-emerald-950">
+            <div>
+              <span className="text-slate-500">Domain:</span>{' '}
+              <span className="text-slate-200">{leakScan.domain}</span>
+            </div>
+            <div>
+              <span className="text-slate-500">Breach Incidents:</span>{' '}
+              <span className={leakScan.breachCount > 0 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                {leakScan.breachCount} Records
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500">VT Mail Host Intel:</span>{' '}
+              <span className={leakScan.domainThreat.isMalicious ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                {leakScan.domainThreat.isMalicious ? 'Flagged Malicious' : 'Clean'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Main Analysis Section: Circular Gauge + Threat Verdict */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main Analysis Section: Gauge + Verdict */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Circular Risk Score Visualizer */}
         <div>
           <CircularRiskScore
@@ -191,28 +229,28 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
           />
         </div>
 
-        {/* Right: SOC Threat Verdict & Analytical Confidence */}
-        <div className="lg:col-span-2 p-6 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl flex flex-col justify-between space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        {/* Right: SOC Assessment Verdict */}
+        <div className="lg:col-span-2 p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 shadow-lg flex flex-col justify-between space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-emerald-950 pb-2">
               <div>
-                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-bold block">
-                  SOC VERDICT & THREAT CLASSIFICATION
+                <span className="text-[10px] uppercase text-emerald-500/80 font-bold block">
+                  SOC VERDICT &amp; THREAT CLASSIFICATION
                 </span>
-                <h2 className="text-lg font-bold text-white font-mono mt-1">
+                <h2 className="text-base font-bold text-white mt-0.5">
                   {scan.classification === 'CRITICAL' || scan.classification === 'HIGH_RISK'
-                    ? 'PHISHING / DECEPTIVE MALICIOUS ENTITY'
+                    ? 'CRITICAL EXPOSURE / DECEPTIVE MALICIOUS ENTITY'
                     : scan.classification === 'MEDIUM_RISK'
-                    ? 'SUSPICIOUS / ELEVATED RISK'
-                    : 'CLEAN / BENIGN REPUTATION'}
+                    ? 'SUSPICIOUS / ELEVATED RISK ANOMALY'
+                    : 'BENIGN / NO ANOMALIES DETECTED'}
                 </h2>
               </div>
-              <RiskBadge category={scan.classification} size="lg" />
+              <RiskBadge category={scan.classification} size="md" />
             </div>
 
             {/* Verdict Callout */}
             <div
-              className={`p-4 rounded-xl border text-sm font-medium ${
+              className={`p-3.5 rounded border text-xs leading-relaxed ${
                 scan.riskScore >= 60
                   ? 'bg-rose-950/40 border-rose-800/70 text-rose-200'
                   : scan.riskScore >= 40
@@ -220,49 +258,49 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
                   : 'bg-emerald-950/40 border-emerald-800/70 text-emerald-200'
               }`}
             >
-              <div className="font-mono text-xs uppercase tracking-wider font-bold mb-1 opacity-80">
+              <div className="text-[10px] uppercase font-bold mb-1 opacity-80">
                 Primary Assessment Verdict
               </div>
-              <p className="leading-relaxed">{verdictText}</p>
+              <p>{verdictText}</p>
             </div>
 
-            {/* Analytical Confidence Clarification */}
-            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono space-y-1.5">
+            {/* Analytical Confidence */}
+            <div className="p-3 rounded bg-[#080d0b] border border-emerald-950 text-xs space-y-1">
               <div className="flex items-center justify-between text-slate-300">
-                <span className="text-cyan-400 font-bold">Analytical Confidence: {Math.round(scan.confidence * 100)}%</span>
-                <span className="text-slate-500">Heuristic Engine Calibration</span>
+                <span className="text-emerald-400 font-bold">Analytical Confidence: {Math.round(scan.confidence * 100)}%</span>
+                <span className="text-slate-500 text-[10px]">Multi-Signal Corroboration</span>
               </div>
               <p className="text-slate-400 text-[11px] leading-relaxed">
-                Note: This percentage represents the prototype algorithm's mathematical corroboration across multiple independent heuristics and vendor telemetry feeds, not a guaranteed empirical certainty.
+                Represents cross-validation consensus between heuristic signatures, darknet breach records, and VirusTotal vendor telemetry.
               </p>
             </div>
           </div>
 
-          {/* Scoring Matrix Weights Breakdown */}
+          {/* Scoring Matrix Weights Breakdown (For URL Scans) */}
           {urlScan?.scoreBreakdown && (
-            <div className="pt-3 border-t border-slate-800/80 space-y-2">
-              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
-                Signal Weight Breakdown:
+            <div className="pt-2 border-t border-emerald-950 space-y-1.5">
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                Signal Weights:
               </span>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
-                <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400 text-[10px] block">VirusTotal</span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                <div className="p-2 rounded bg-[#080d0b] border border-emerald-950">
+                  <span className="text-slate-500 text-[10px] block">VirusTotal</span>
                   <span className="font-bold text-white">{urlScan.scoreBreakdown.vtScore}/100</span>
                 </div>
-                <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400 text-[10px] block">URL Patterns</span>
+                <div className="p-2 rounded bg-[#080d0b] border border-emerald-950">
+                  <span className="text-slate-500 text-[10px] block">URL Heuristics</span>
                   <span className="font-bold text-white">{urlScan.scoreBreakdown.urlHeuristicScore}/100</span>
                 </div>
-                <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400 text-[10px] block">Domain Host</span>
+                <div className="p-2 rounded bg-[#080d0b] border border-emerald-950">
+                  <span className="text-slate-500 text-[10px] block">Domain Host</span>
                   <span className="font-bold text-white">{urlScan.scoreBreakdown.domainScore}/100</span>
                 </div>
-                <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400 text-[10px] block">Brand Spoof</span>
+                <div className="p-2 rounded bg-[#080d0b] border border-emerald-950">
+                  <span className="text-slate-500 text-[10px] block">Brand Spoof</span>
                   <span className="font-bold text-white">{urlScan.scoreBreakdown.brandScore}/100</span>
                 </div>
-                <div className="p-2 rounded bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400 text-[10px] block">Anomalies</span>
+                <div className="p-2 rounded bg-[#080d0b] border border-emerald-950">
+                  <span className="text-slate-500 text-[10px] block">Other Anomalies</span>
                   <span className="font-bold text-white">{urlScan.scoreBreakdown.otherScore}/100</span>
                 </div>
               </div>
@@ -271,32 +309,100 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
         </div>
       </div>
 
-      {/* Visual Analysis Pipeline Sequence */}
+      {/* Pipeline Sequence */}
       <Timeline
-        type={scan.type}
+        type={isUrl ? 'URL' : 'EMAIL'}
         riskScore={scan.riskScore}
-        vtAvailable={isUrl ? Boolean(urlScan?.virusTotal.available) : false}
+        vtAvailable={isUrl ? Boolean(urlScan?.virusTotal.available) : Boolean(leakScan?.virusTotal.available)}
       />
 
-      {/* VirusTotal Threat Intelligence Card (For URL Scans) */}
-      {isUrl && urlScan && (
-        <div>
-          <VirusTotalCard virusTotal={urlScan.virusTotal} />
+      {/* Special Module: EMAIL LEAK / BREACH SCAN RESULTS */}
+      {isLeak && leakScan && (
+        <div className="space-y-5">
+          {/* Breach Incidents Card */}
+          <div className="p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-sm font-bold text-slate-100 uppercase">
+                  Data Breach &amp; Stealer Log Compromise Telemetry
+                </h4>
+              </div>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded border uppercase font-bold ${
+                  leakScan.isLeaked
+                    ? 'bg-rose-950 text-rose-300 border-rose-800'
+                    : 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                }`}
+              >
+                {leakScan.isLeaked ? `EXPOSED IN ${leakScan.breachCount} BREACHES` : '0 EXPOSURES DETECTED'}
+              </span>
+            </div>
+
+            {leakScan.breaches.length === 0 ? (
+              <div className="p-4 rounded bg-[#080d0b] border border-emerald-950 text-xs text-slate-300 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>No active credential leaks or info-stealer exfiltrations detected for this identity.</span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {leakScan.breaches.map((breach, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded bg-[#080d0b] border border-rose-950/80 space-y-2 text-xs"
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0" />
+                        <span className="font-bold text-white text-sm">{breach.name}</span>
+                        <span className="text-[10px] text-slate-500">[{breach.date}]</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 uppercase">
+                        {breach.severity} EXPOSURE
+                      </span>
+                    </div>
+
+                    <p className="text-slate-300 text-xs leading-relaxed">{breach.description}</p>
+
+                    <div className="pt-2 border-t border-emerald-950/60 flex items-center gap-2 flex-wrap text-[11px]">
+                      <span className="text-slate-500">Exposed Data:</span>
+                      {breach.dataExposed.map((item, dIdx) => (
+                        <span
+                          key={dIdx}
+                          className="px-2 py-0.5 rounded bg-[#121c17] text-emerald-300 border border-emerald-900/60"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* VirusTotal Domain Threat Card for Email Provider */}
+          <VirusTotalCard virusTotal={leakScan.virusTotal} />
         </div>
       )}
 
-      {/* Email Specific: Sender Analysis & Extracted URLs */}
-      {emailScan && (
-        <div className="space-y-6">
+      {/* VirusTotal Card for URL Scans */}
+      {isUrl && urlScan && (
+        <VirusTotalCard virusTotal={urlScan.virusTotal} />
+      )}
+
+      {/* Email Body & Sender Analysis */}
+      {isEmail && emailScan && (
+        <div className="space-y-5">
           {/* Sender Analysis Card */}
-          <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/90 space-y-4">
+          <div className="p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-cyan-400" />
-                <h4 className="font-mono text-sm font-semibold text-slate-100">Sender Identity & Mismatch Analysis</h4>
+                <Mail className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-sm font-bold text-slate-100 uppercase">Sender Domain Alignment</h4>
               </div>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase font-bold ${
+                className={`text-[10px] px-2 py-0.5 rounded border uppercase font-bold ${
                   emailScan.senderAnalysis.spoofingRisk === 'CRITICAL'
                     ? 'bg-rose-950 text-rose-300 border-rose-800'
                     : emailScan.senderAnalysis.spoofingRisk === 'HIGH'
@@ -308,65 +414,60 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
-              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
-                <span className="text-slate-400 block text-[10px] uppercase">From Domain:</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-2.5 rounded bg-[#080d0b] border border-emerald-950">
+                <span className="text-slate-500 block text-[10px] uppercase">From Domain:</span>
                 <span className="text-white font-bold">{emailScan.senderAnalysis.fromDomain || 'None'}</span>
               </div>
 
-              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
-                <span className="text-slate-400 block text-[10px] uppercase">Reply-To Mismatch:</span>
+              <div className="p-2.5 rounded bg-[#080d0b] border border-emerald-950">
+                <span className="text-slate-500 block text-[10px] uppercase">Reply-To Alignment:</span>
                 <span className={emailScan.senderAnalysis.replyToMismatch ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
                   {emailScan.senderAnalysis.replyToMismatch ? '⚠ MISMATCH DETECTED' : '✓ Verified Match'}
                 </span>
               </div>
 
-              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
-                <span className="text-slate-400 block text-[10px] uppercase">Link Domain Alignment:</span>
+              <div className="p-2.5 rounded bg-[#080d0b] border border-emerald-950">
+                <span className="text-slate-500 block text-[10px] uppercase">Link Destination Domain:</span>
                 <span className={emailScan.senderAnalysis.embeddedDomainMismatch ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
-                  {emailScan.senderAnalysis.embeddedDomainMismatch ? '🚨 EXTERNAL LINK ROUTING' : '✓ Aligned'}
+                  {emailScan.senderAnalysis.embeddedDomainMismatch ? '🚨 EXTERNAL ROUTING' : '✓ Aligned'}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Extracted URLs List */}
-          <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/90 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-cyan-400" />
-                <h4 className="font-mono text-sm font-semibold text-slate-100">
-                  Extracted URLs From Email Body ({emailScan.extractedUrls.length} Discovered)
-                </h4>
-              </div>
-            </div>
+          <div className="p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 space-y-3">
+            <h4 className="text-sm font-bold text-slate-100 uppercase">
+              Extracted URLs From Email Body ({emailScan.extractedUrls.length} Discovered)
+            </h4>
 
             {emailScan.extractedUrls.length === 0 ? (
-              <p className="text-xs font-mono text-slate-400">No embedded URLs detected in the email body.</p>
+              <p className="text-xs text-slate-400">No embedded URLs detected in the email body.</p>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {emailScan.extractedUrls.map((linkItem, idx) => (
                   <div
                     key={idx}
-                    className="p-3 rounded-lg bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono"
+                    className="p-3 rounded bg-[#080d0b] border border-emerald-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs"
                   >
-                    <div className="space-y-0.5 overflow-hidden max-w-xl">
-                      <span className="text-cyan-300 font-medium truncate block">{linkItem.url}</span>
-                      <div className="flex items-center gap-3 text-slate-400 text-[11px]">
+                    <div className="overflow-hidden max-w-xl">
+                      <span className="text-emerald-300 font-medium truncate block">{linkItem.url}</span>
+                      <div className="flex items-center gap-2 text-slate-400 text-[11px]">
                         <span>Domain: {linkItem.domain}</span>
                         <span>•</span>
-                        <span>Heuristic Score: {linkItem.heuristicScore}/100</span>
+                        <span>Score: {linkItem.heuristicScore}/100</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <RiskBadge category={linkItem.classification} size="sm" />
                       <button
                         onClick={() => handleDeepScanUrl(linkItem.url)}
                         disabled={analyzingUrl === linkItem.url}
-                        className="px-3 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/40 text-[11px] font-bold transition-colors cursor-pointer"
+                        className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[11px] font-bold transition-colors cursor-pointer"
                       >
-                        {analyzingUrl === linkItem.url ? 'Analyzing...' : 'Deep Analyze URL →'}
+                        {analyzingUrl === linkItem.url ? 'Analyzing...' : 'Deep Inspect →'}
                       </button>
                     </div>
                   </div>
@@ -377,70 +478,18 @@ export default function ResultDetailsView({ scan }: ResultDetailsViewProps) {
         </div>
       )}
 
-      {/* Why Was This Flagged? Security Indicators */}
+      {/* Why Was This Flagged? Indicators */}
       <div>
         <IndicatorsList indicators={scan.indicators} />
       </div>
 
-      {/* Actionable Recommendations */}
+      {/* Actionable Incident Response Protocol */}
       <div>
         <RecommendationsCard
           classification={scan.classification}
           recommendations={scan.recommendations}
         />
       </div>
-
-      {/* Technical Metadata Inspection Details */}
-      {isUrl && urlScan && (
-        <div className="p-5 rounded-xl border border-slate-800 bg-slate-900/60 space-y-3 font-mono text-xs text-slate-400">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span className="font-semibold text-slate-200">Raw Technical Inspection Metrics</span>
-            <span className="text-[11px] text-slate-500">Heuristic Parser Output</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">Apex TLD:</span>
-              <span className="text-slate-200 font-bold">.{urlScan.domainHeuristics.tld || 'none'}</span>
-            </div>
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">Shannon Entropy:</span>
-              <span className="text-slate-200 font-bold">{urlScan.domainHeuristics.entropy}</span>
-            </div>
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">Subdomains:</span>
-              <span className="text-slate-200 font-bold">{urlScan.domainHeuristics.subdomainCount}</span>
-            </div>
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">Path Depth:</span>
-              <span className="text-slate-200 font-bold">{urlScan.urlHeuristics.pathDepth}</span>
-            </div>
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">Punycode / IDN:</span>
-              <span className={urlScan.domainHeuristics.isPunycode ? 'text-rose-400 font-bold' : 'text-slate-200'}>
-                {urlScan.domainHeuristics.isPunycode ? 'YES' : 'NO'}
-              </span>
-            </div>
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">Direct IP Host:</span>
-              <span className={urlScan.domainHeuristics.isIpAddress ? 'text-rose-400 font-bold' : 'text-slate-200'}>
-                {urlScan.domainHeuristics.isIpAddress ? 'YES' : 'NO'}
-              </span>
-            </div>
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">TLS Scheme:</span>
-              <span className={urlScan.urlHeuristics.isHttps ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
-                {urlScan.urlHeuristics.isHttps ? 'HTTPS' : 'HTTP (Cleartext)'}
-              </span>
-            </div>
-            <div className="p-2 rounded bg-slate-950 border border-slate-800/80">
-              <span className="text-[10px] text-slate-500 block">Query Parameters:</span>
-              <span className="text-slate-200 font-bold">{urlScan.urlHeuristics.queryParamCount}</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-

@@ -2,19 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Key,
-  Shield,
-  Sliders,
   SlidersHorizontal,
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
-  Info,
   Save,
   Lock,
   Zap,
-  Sparkles,
-  RotateCcw
+  RotateCcw,
+  Terminal
 } from 'lucide-react';
 import { RiskWeightsConfig } from '@/types/security';
 import { DEFAULT_RISK_WEIGHTS } from '@/lib/riskEngine';
@@ -81,12 +77,12 @@ export default function SettingsView() {
       const data = await res.json();
       setTestResult({
         valid: data.valid,
-        message: data.message || (data.valid ? 'Key verified successfully!' : 'Key rejected.')
+        message: data.message || (data.valid ? 'VirusTotal API key validated successfully!' : 'Key rejected by VirusTotal.')
       });
     } catch {
       setTestResult({
         valid: false,
-        message: 'Network error communicating with validation service.'
+        message: 'Network error communicating with VirusTotal endpoint.'
       });
     } finally {
       setIsTestingKey(false);
@@ -134,189 +130,169 @@ export default function SettingsView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6 font-mono">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-5">
-        <h1 className="text-2xl font-bold font-mono text-white">System Settings & Calibration</h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Configure external threat feeds, risk scoring weight distribution, and prototype modes.
+      <div className="border-b border-emerald-950 pb-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-white uppercase">System Calibration &amp; Credentials</h1>
+        <p className="text-xs text-slate-400 mt-0.5">
+          Configure external VirusTotal threat feeds, scoring weights, and simulation fallbacks.
         </p>
       </div>
 
       {saveSuccess && (
-        <div className="p-3.5 rounded-lg bg-emerald-950/50 border border-emerald-800/80 flex items-center gap-2.5 text-emerald-300 text-xs font-mono">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>Configuration saved successfully and applied to active analysis engine.</span>
+        <div className="p-3 rounded bg-emerald-950/60 border border-emerald-800 flex items-center gap-2 text-emerald-300 text-xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>Configuration committed to runtime engine.</span>
         </div>
       )}
 
       {/* 1. VirusTotal API Configuration */}
-      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl space-y-5">
+      <div className="p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-cyan-950 border border-cyan-800/60 text-cyan-400">
-              <Zap className="w-5 h-5" />
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-400">
+              <Zap className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white font-mono">VirusTotal API v3 Credentials</h3>
-              <p className="text-xs text-slate-400">
-                Connects PhishGuard to VirusTotal's global database of 90+ security engines.
+              <h3 className="font-bold text-xs text-white uppercase">VirusTotal API v3 Secret Key</h3>
+              <p className="text-[11px] text-slate-400">
+                Queries 90+ threat databases for URL &amp; domain breach reputation.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span
-              className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded border uppercase ${
-                hasApiKey
-                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800'
-                  : 'bg-amber-950/80 text-amber-300 border-amber-800'
-              }`}
-            >
-              {hasApiKey ? 'ACTIVE KEY CONFIGURED' : 'NOT CONFIGURED'}
-            </span>
-          </div>
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+              hasApiKey
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800'
+                : 'bg-amber-950/80 text-amber-300 border-amber-800'
+            }`}
+          >
+            {hasApiKey ? 'KEY CONFIGURED' : 'UNCONFIGURED'}
+          </span>
         </div>
 
-        {/* Existing key indicator */}
         {hasApiKey && (
-          <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs font-mono">
+          <div className="p-2.5 rounded bg-[#080d0b] border border-emerald-950 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-slate-300">
-              <Lock className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Current Key:</span>
-              <code className="text-cyan-300 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+              <Lock className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Active Key:</span>
+              <code className="text-emerald-300 font-bold bg-[#0d1411] px-1.5 py-0.5 rounded border border-emerald-950">
                 {maskedKey}
               </code>
             </div>
-            <span className="text-[11px] text-slate-500">Source: {apiKeySource}</span>
+            <span className="text-[10px] text-slate-500">Source: {apiKeySource}</span>
           </div>
         )}
 
-        <div className="space-y-3">
-          <label className="text-xs font-mono uppercase tracking-wider text-slate-400 block font-semibold">
-            {hasApiKey ? 'Update API Key (Leaves untouched if blank)' : 'Enter VirusTotal API Key'}
+        <div className="space-y-2.5">
+          <label className="text-[11px] uppercase text-emerald-400 block font-bold">
+            {hasApiKey ? 'Update API Key (Leaves existing active if empty)' : 'Paste VirusTotal API Key'}
           </label>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="password"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="Paste 64-character API key from virustotal.com"
-              className="flex-1 px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-cyan-500"
+              placeholder="Paste 64-character VirusTotal API v3 key"
+              className="flex-1 px-3 py-2 rounded bg-[#080d0b] border border-emerald-900 text-emerald-100 placeholder-slate-600 text-xs focus:outline-none focus:border-emerald-400"
             />
             <button
               onClick={handleTestKey}
               disabled={isTestingKey || !apiKeyInput.trim()}
-              className="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-mono text-xs border border-slate-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 rounded bg-[#0b1410] hover:bg-[#12201a] disabled:opacity-50 text-slate-200 text-xs border border-emerald-950 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isTestingKey ? 'animate-spin text-cyan-400' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isTestingKey ? 'animate-spin text-emerald-400' : ''}`} />
               <span>Test Key</span>
             </button>
           </div>
 
           {testResult && (
             <div
-              className={`p-3 rounded-lg border text-xs font-mono flex items-center gap-2 ${
+              className={`p-2.5 rounded border text-xs flex items-center gap-2 ${
                 testResult.valid
                   ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300'
                   : 'bg-rose-950/40 border-rose-800 text-rose-300'
               }`}
             >
               {testResult.valid ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               ) : (
-                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
               )}
               <span>{testResult.message}</span>
             </div>
           )}
 
-          <p className="text-[11px] text-slate-500 font-mono">
-            Security Notice: API keys are securely stored server-side only. They are never sent to the browser or logged. You can also supply the key via the <code className="text-cyan-400 font-mono">VIRUSTOTAL_API_KEY</code> environment variable.
+          <p className="text-[10px] text-slate-500">
+            Security Guarantee: Keys remain server-side only in process memory. Never transmitted to client-side code.
           </p>
         </div>
       </div>
 
-      {/* 2. Demo Mode & Simulation Controls */}
-      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-lg bg-cyan-950 border border-cyan-800/60 text-cyan-400">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm text-white font-mono">Demo Mode & Simulation</h3>
-            <p className="text-xs text-slate-400">
-              Ensures the prototype demonstrates complete functionality even without external API credentials.
-            </p>
-          </div>
-        </div>
+      {/* 2. Simulation & Demo Controls */}
+      <div className="p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 space-y-3">
+        <h3 className="font-bold text-xs text-white uppercase flex items-center gap-2">
+          <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Telemetry &amp; Offline Demo Fallbacks</span>
+        </h3>
 
-        <div className="space-y-3 pt-2">
-          <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+        <div className="space-y-2 text-xs">
+          <label className="flex items-start gap-2.5 p-2.5 rounded bg-[#080d0b] border border-emerald-950 cursor-pointer">
             <input
               type="checkbox"
               checked={demoMode}
               onChange={(e) => setDemoMode(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+              className="mt-0.5 accent-emerald-500 cursor-pointer"
             />
-            <div className="space-y-0.5 text-xs font-mono">
-              <span className="font-bold text-slate-200 block">Enable Demo Threat Intelligence Simulation</span>
-              <span className="text-slate-400 text-[11px] leading-relaxed block">
-                When enabled and no live VirusTotal key is present, test domains (e.g. PayPal spoof, Google safe) return simulated vendor consensus marked with "DEMO DATA" badges.
+            <div>
+              <span className="font-bold text-slate-200 block">Simulate Threat Telemetry When Key Is Missing</span>
+              <span className="text-[11px] text-slate-400 block">
+                Returns realistic vendor consensus for demo links with transparent [DEMO DATA] labels.
               </span>
             </div>
           </label>
 
-          <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+          <label className="flex items-start gap-2.5 p-2.5 rounded bg-[#080d0b] border border-emerald-950 cursor-pointer">
             <input
               type="checkbox"
               checked={autoExtractUrls}
               onChange={(e) => setAutoExtractUrls(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500 cursor-pointer"
+              className="mt-0.5 accent-emerald-500 cursor-pointer"
             />
-            <div className="space-y-0.5 text-xs font-mono">
-              <span className="font-bold text-slate-200 block">Automatic Email URL Extraction & Triage</span>
-              <span className="text-slate-400 text-[11px] leading-relaxed block">
-                Automatically isolates hyperlinks from submitted emails and calculates immediate preliminary risk indices for each link.
+            <div>
+              <span className="font-bold text-slate-200 block">Automated Email URL Triage</span>
+              <span className="text-[11px] text-slate-400 block">
+                Automatically extracts and pre-screens hyperlinks found in submitted email bodies.
               </span>
             </div>
           </label>
         </div>
       </div>
 
-      {/* 3. Transparent Risk Scoring Weights Configuration */}
-      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-cyan-950 border border-cyan-800/60 text-cyan-400">
-              <SlidersHorizontal className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-white font-mono">Prototype Risk Scoring Engine Weights</h3>
-              <p className="text-xs text-slate-400">
-                Adjust how heavily each intelligence signal factors into the composite 0–100 threat score.
-              </p>
-            </div>
+      {/* 3. Transparent Risk Weights */}
+      <div className="p-5 rounded-xl border border-emerald-500/25 bg-[#0d1411]/95 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+            <h3 className="font-bold text-xs text-white uppercase">Risk Scoring Weights Matrix</h3>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetWeights}
-              className="flex items-center gap-1.5 text-xs font-mono text-cyan-400 hover:text-cyan-300"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset to Defaults</span>
-            </button>
-          </div>
+          <button
+            onClick={handleResetWeights}
+            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 cursor-pointer"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>Reset Defaults</span>
+          </button>
         </div>
 
-        {/* Weights Sliders */}
-        <div className="space-y-4 font-mono text-xs">
+        <div className="space-y-3 text-xs">
           {/* VT Weight */}
-          <div className="space-y-1.5 p-3 rounded-lg bg-slate-950 border border-slate-800">
+          <div className="space-y-1 p-2.5 rounded bg-[#080d0b] border border-emerald-950">
             <div className="flex items-center justify-between text-slate-300">
-              <span>VirusTotal Malicious Detections:</span>
-              <span className="text-cyan-400 font-bold">{weights.vtWeight}%</span>
+              <span>VirusTotal Vendor Detections:</span>
+              <span className="text-emerald-400 font-bold">{weights.vtWeight}%</span>
             </div>
             <input
               type="range"
@@ -324,15 +300,15 @@ export default function SettingsView() {
               max="70"
               value={weights.vtWeight}
               onChange={(e) => setWeights({ ...weights, vtWeight: Number(e.target.value) })}
-              className="w-full accent-cyan-400 cursor-pointer"
+              className="w-full accent-emerald-400 cursor-pointer"
             />
           </div>
 
-          {/* URL Heuristics Weight */}
-          <div className="space-y-1.5 p-3 rounded-lg bg-slate-950 border border-slate-800">
+          {/* URL Heuristics */}
+          <div className="space-y-1 p-2.5 rounded bg-[#080d0b] border border-emerald-950">
             <div className="flex items-center justify-between text-slate-300">
-              <span>URL Signature & Keyword Heuristics:</span>
-              <span className="text-cyan-400 font-bold">{weights.urlHeuristicsWeight}%</span>
+              <span>URL Signatures &amp; Auth Keywords:</span>
+              <span className="text-emerald-400 font-bold">{weights.urlHeuristicsWeight}%</span>
             </div>
             <input
               type="range"
@@ -340,15 +316,15 @@ export default function SettingsView() {
               max="70"
               value={weights.urlHeuristicsWeight}
               onChange={(e) => setWeights({ ...weights, urlHeuristicsWeight: Number(e.target.value) })}
-              className="w-full accent-cyan-400 cursor-pointer"
+              className="w-full accent-emerald-400 cursor-pointer"
             />
           </div>
 
-          {/* Domain Characteristics */}
-          <div className="space-y-1.5 p-3 rounded-lg bg-slate-950 border border-slate-800">
+          {/* Domain Host */}
+          <div className="space-y-1 p-2.5 rounded bg-[#080d0b] border border-emerald-950">
             <div className="flex items-center justify-between text-slate-300">
-              <span>Domain Characteristics & TLD / Entropy:</span>
-              <span className="text-cyan-400 font-bold">{weights.domainWeight}%</span>
+              <span>Domain Characteristics &amp; Shannon Entropy:</span>
+              <span className="text-emerald-400 font-bold">{weights.domainWeight}%</span>
             </div>
             <input
               type="range"
@@ -356,15 +332,15 @@ export default function SettingsView() {
               max="50"
               value={weights.domainWeight}
               onChange={(e) => setWeights({ ...weights, domainWeight: Number(e.target.value) })}
-              className="w-full accent-cyan-400 cursor-pointer"
+              className="w-full accent-emerald-400 cursor-pointer"
             />
           </div>
 
           {/* Brand Impersonation */}
-          <div className="space-y-1.5 p-3 rounded-lg bg-slate-950 border border-slate-800">
+          <div className="space-y-1 p-2.5 rounded bg-[#080d0b] border border-emerald-950">
             <div className="flex items-center justify-between text-slate-300">
-              <span>Brand Impersonation & Lookalike Subdomains:</span>
-              <span className="text-cyan-400 font-bold">{weights.brandWeight}%</span>
+              <span>Brand Impersonation &amp; Lookalike Tokens:</span>
+              <span className="text-emerald-400 font-bold">{weights.brandWeight}%</span>
             </div>
             <input
               type="range"
@@ -372,15 +348,15 @@ export default function SettingsView() {
               max="40"
               value={weights.brandWeight}
               onChange={(e) => setWeights({ ...weights, brandWeight: Number(e.target.value) })}
-              className="w-full accent-cyan-400 cursor-pointer"
+              className="w-full accent-emerald-400 cursor-pointer"
             />
           </div>
 
-          {/* Other Indicators */}
-          <div className="space-y-1.5 p-3 rounded-lg bg-slate-950 border border-slate-800">
+          {/* Other */}
+          <div className="space-y-1 p-2.5 rounded bg-[#080d0b] border border-emerald-950">
             <div className="flex items-center justify-between text-slate-300">
-              <span>Other Structural Indicators (HTTP scheme, ports, open redirects):</span>
-              <span className="text-cyan-400 font-bold">{weights.otherWeight}%</span>
+              <span>Other Structural Signals (HTTP, open redirects):</span>
+              <span className="text-emerald-400 font-bold">{weights.otherWeight}%</span>
             </div>
             <input
               type="range"
@@ -388,31 +364,30 @@ export default function SettingsView() {
               max="30"
               value={weights.otherWeight}
               onChange={(e) => setWeights({ ...weights, otherWeight: Number(e.target.value) })}
-              className="w-full accent-cyan-400 cursor-pointer"
+              className="w-full accent-emerald-400 cursor-pointer"
             />
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900 border border-slate-800 text-xs">
-            <span className="text-slate-400">Cumulative Weight Sum:</span>
+          <div className="flex items-center justify-between p-2 rounded bg-[#090d0b] border border-emerald-950 text-xs">
+            <span className="text-slate-400">Total Matrix Sum:</span>
             <span className={`font-bold ${totalWeight === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
-              {totalWeight}% {totalWeight !== 100 && '(Auto-normalized during score computation)'}
+              {totalWeight}% {totalWeight !== 100 && '(Auto-normalized)'}
             </span>
           </div>
         </div>
       </div>
 
       {/* Save Button */}
-      <div className="flex items-center justify-end gap-3 pt-2">
+      <div className="flex justify-end pt-1">
         <button
           onClick={handleSaveSettings}
           disabled={isSaving}
-          className="flex items-center gap-2 px-6 py-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold font-mono text-sm transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] cursor-pointer"
+          className="flex items-center gap-2 px-6 py-2.5 rounded bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)] cursor-pointer"
         >
-          {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          <span>Save Changes</span>
+          {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+          <span>Save Calibration</span>
         </button>
       </div>
     </div>
   );
 }
-

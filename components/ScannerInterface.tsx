@@ -12,23 +12,27 @@ import {
   Loader2,
   AlertTriangle,
   ArrowRight,
-  ExternalLink,
+  Terminal,
+  Database,
+  Globe,
+  Lock,
   ChevronDown,
   ChevronUp,
-  Sparkles,
-  Link as LinkIcon
+  Link as LinkIcon,
+  UserX
 } from 'lucide-react';
 import { DEMO_URLS, DEMO_EMAILS } from '@/lib/sampleData';
-import { ScanResult, URLAnalysisResult, EmailAnalysisResult } from '@/types/security';
+import { DEMO_BREACH_EMAILS } from '@/lib/emailLeakScanner';
+import { ScanResult } from '@/types/security';
 
-export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 'url' | 'email' }) {
+export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 'url' | 'email' | 'leak' }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'url' | 'email'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'url' | 'email' | 'leak'>(initialTab);
 
   // URL state
   const [urlInput, setUrlInput] = useState('');
 
-  // Email state
+  // Email Analyzer state
   const [emailFrom, setEmailFrom] = useState('');
   const [emailReplyTo, setEmailReplyTo] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
@@ -36,36 +40,54 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
   const [emailHeaders, setEmailHeaders] = useState('');
   const [showHeaders, setShowHeaders] = useState(false);
 
-  // Loading & Progress state
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanStep, setScanStep] = useState(0); // 0 to 5
-  const [errorMsg, setErrorMsg] = useState('');
-  const [recentScanResult, setRecentScanResult] = useState<ScanResult | null>(null);
+  // Email Leak / Breach Scanner state
+  const [leakEmailInput, setLeakEmailInput] = useState('');
 
-  const scanStepsList = [
-    'Parsing & validating target format',
-    'Extracting hostname and domain infrastructure',
-    'Executing 20+ signature heuristic checks',
-    'Querying VirusTotal threat intelligence',
-    'Synthesizing risk matrix and confidence model'
+  // Execution & Progress state
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanStep, setScanStep] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const urlSteps = [
+    '[01/05] Normalizing URI scheme & canonicalizing target host',
+    '[02/05] Evaluating Shannon domain entropy & Punycode homographs',
+    '[03/05] Scanning path & query strings against credential harvesting patterns',
+    '[04/05] Querying VirusTotal multi-vendor threat intelligence v3 API',
+    '[05/05] Generating SOC threat matrix & analytical confidence index'
   ];
+
+  const emailSteps = [
+    '[01/05] Parsing RFC 5322 email headers & envelope addresses',
+    '[02/05] Checking From vs Reply-To domain alignment & spoofing vectors',
+    '[03/05] Extracting embedded hyperlinks without evaluating untrusted code',
+    '[04/05] Screening for social engineering coercion & credential lures',
+    '[05/05] Synthesizing sender risk score & containment recommendations'
+  ];
+
+  const leakSteps = [
+    '[01/05] Validating target mailbox syntax & extracting mail domain',
+    '[02/05] Querying VirusTotal domain reputation & MX server status',
+    '[03/05] Searching known stealer logs (RedLine, Lumma) & combo dumps',
+    '[04/05] Inspecting compromised attributes (plaintext passwords, session tokens)',
+    '[05/05] Calculating identity exposure level & remediation protocols'
+  ];
+
+  const currentSteps = activeTab === 'url' ? urlSteps : activeTab === 'email' ? emailSteps : leakSteps;
 
   const handleUrlScan = async (targetToScan?: string) => {
     const raw = targetToScan || urlInput;
     if (!raw.trim()) {
-      setErrorMsg('Please enter a URL to analyze.');
+      setErrorMsg('Error: Specify a valid URL or host to inspect.');
       return;
     }
 
     setErrorMsg('');
     setIsScanning(true);
-    setRecentScanResult(null);
-
-    // Progressive step animation
     setScanStep(0);
+
     const stepInterval = setInterval(() => {
       setScanStep((prev) => (prev < 4 ? prev + 1 : prev));
-    }, 450);
+    }, 400);
 
     try {
       const res = await fetch('/api/scan/url', {
@@ -79,35 +101,32 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
       setScanStep(5);
 
       if (!res.ok) {
-        throw new Error(data.error || 'Scan failed');
+        throw new Error(data.error || 'Inspection halted.');
       }
 
-      setRecentScanResult(data);
-      // Automatically redirect to detailed results page after a brief moment
       setTimeout(() => {
         router.push(`/results/${data.id}`);
-      }, 700);
+      }, 600);
     } catch (err: unknown) {
       clearInterval(stepInterval);
       setIsScanning(false);
-      setErrorMsg(err instanceof Error ? err.message : 'Analysis failed. Please check the URL.');
+      setErrorMsg(err instanceof Error ? err.message : 'Analysis failed.');
     }
   };
 
   const handleEmailScan = async () => {
     if (!emailBody.trim() && !emailSubject.trim()) {
-      setErrorMsg('Please provide the email subject or body text.');
+      setErrorMsg('Error: Email subject or body content required for triage.');
       return;
     }
 
     setErrorMsg('');
     setIsScanning(true);
-    setRecentScanResult(null);
-
     setScanStep(0);
+
     const stepInterval = setInterval(() => {
       setScanStep((prev) => (prev < 4 ? prev + 1 : prev));
-    }, 450);
+    }, 400);
 
     try {
       const res = await fetch('/api/scan/email', {
@@ -127,17 +146,56 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
       setScanStep(5);
 
       if (!res.ok) {
-        throw new Error(data.error || 'Email analysis failed');
+        throw new Error(data.error || 'Email analysis halted.');
       }
 
-      setRecentScanResult(data);
       setTimeout(() => {
         router.push(`/results/${data.id}`);
-      }, 700);
+      }, 600);
     } catch (err: unknown) {
       clearInterval(stepInterval);
       setIsScanning(false);
       setErrorMsg(err instanceof Error ? err.message : 'Analysis failed.');
+    }
+  };
+
+  const handleLeakScan = async (targetEmail?: string) => {
+    const raw = targetEmail || leakEmailInput;
+    if (!raw.trim() || !raw.includes('@')) {
+      setErrorMsg('Error: Specify a valid email address (e.g. user@target.com).');
+      return;
+    }
+
+    setErrorMsg('');
+    setIsScanning(true);
+    setScanStep(0);
+
+    const stepInterval = setInterval(() => {
+      setScanStep((prev) => (prev < 4 ? prev + 1 : prev));
+    }, 400);
+
+    try {
+      const res = await fetch('/api/scan/email-leak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: raw.trim() })
+      });
+
+      const data = await res.json();
+      clearInterval(stepInterval);
+      setScanStep(5);
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Breach lookup failed.');
+      }
+
+      setTimeout(() => {
+        router.push(`/results/${data.id}`);
+      }, 600);
+    } catch (err: unknown) {
+      clearInterval(stepInterval);
+      setIsScanning(false);
+      setErrorMsg(err instanceof Error ? err.message : 'Breach lookup failed.');
     }
   };
 
@@ -152,42 +210,48 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
-      {/* Platform Header */}
+    <div className="w-full max-w-4xl mx-auto space-y-6 font-mono">
+      {/* Console Header */}
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 text-xs font-mono font-medium">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Next-Generation Phishing Defense Engine</span>
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-[#0c1511] border border-emerald-500/30 text-emerald-400 text-xs">
+          <Terminal className="w-3.5 h-3.5" />
+          <span>CYBERSECURITY THREAT & IOC INSPECTION TERMINAL</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white font-mono">
-          Phish<span className="text-cyan-400">Guard</span>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white uppercase">
+          PHISH<span className="text-emerald-400">GUARD</span> CONSOLE
         </h1>
-        <p className="text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
-          AI-Assisted Phishing Email & URL Detection. Transparent heuristics, VirusTotal threat intelligence, and explainable risk scoring.
+        <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+          High-assurance phishing detection, email spoofing triage, and VirusTotal threat & breach intelligence.
         </p>
       </div>
 
-      {/* Main Interactive Scanner Container */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/90 shadow-2xl p-6 sm:p-8 backdrop-blur-xl relative overflow-hidden">
-        {/* Subtle top cyan line */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-80" />
+      {/* Main Terminal Box */}
+      <div className="rounded-xl border border-emerald-500/30 bg-[#0d1411]/95 shadow-[0_0_25px_rgba(16,185,129,0.06)] p-5 sm:p-7 relative">
+        {/* Terminal top titlebar */}
+        <div className="flex items-center justify-between border-b border-emerald-950 pb-3 mb-5 text-xs text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+            <span className="text-emerald-400 font-bold uppercase">sec-ops@phishguard-terminal:~$</span>
+          </div>
+          <span className="text-[11px] text-emerald-500/60 hidden sm:inline">VT_API_V3 // ACTIVE</span>
+        </div>
 
         {/* Tab Selection */}
-        <div className="flex border-b border-slate-800 pb-4 mb-6 gap-2">
+        <div className="flex flex-wrap border-b border-emerald-950 pb-3 mb-5 gap-2">
           <button
             onClick={() => {
               setActiveTab('url');
               setErrorMsg('');
             }}
             disabled={isScanning}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-bold uppercase transition-all cursor-pointer ${
               activeTab === 'url'
-                ? 'bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                ? 'bg-emerald-500 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                : 'text-slate-400 hover:text-emerald-300 hover:bg-emerald-950/40 border border-emerald-900/40'
             }`}
           >
-            <Search className="w-4 h-4" />
-            <span>URL Scanner</span>
+            <Globe className="w-3.5 h-3.5" />
+            <span>[1] URL Scanner</span>
           </button>
 
           <button
@@ -196,39 +260,55 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
               setErrorMsg('');
             }}
             disabled={isScanning}
-            className={`flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-bold uppercase transition-all cursor-pointer ${
               activeTab === 'email'
-                ? 'bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                ? 'bg-emerald-500 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                : 'text-slate-400 hover:text-emerald-300 hover:bg-emerald-950/40 border border-emerald-900/40'
             }`}
           >
-            <Mail className="w-4 h-4" />
-            <span>Email Analyzer</span>
+            <Mail className="w-3.5 h-3.5" />
+            <span>[2] Email Body & Headers</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('leak');
+              setErrorMsg('');
+            }}
+            disabled={isScanning}
+            className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-bold uppercase transition-all cursor-pointer ${
+              activeTab === 'leak'
+                ? 'bg-emerald-500 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+                : 'text-slate-400 hover:text-emerald-300 hover:bg-emerald-950/40 border border-emerald-900/40'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>[3] Email Leak & Breach Checker</span>
           </button>
         </div>
 
         {/* Error Callout */}
         {errorMsg && (
-          <div className="mb-6 p-4 rounded-lg bg-rose-950/40 border border-rose-800/60 flex items-start gap-3 text-rose-300 text-sm">
-            <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400 mt-0.5" />
-            <div className="flex-1">
-              <span className="font-semibold block">Analysis Halted</span>
+          <div className="mb-5 p-3 rounded bg-rose-950/60 border border-rose-700/80 flex items-start gap-2.5 text-rose-300 text-xs">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold uppercase block">Analysis Interrupted</span>
               <span>{errorMsg}</span>
             </div>
           </div>
         )}
 
-        {/* Scanner Form Tab 1: URL Scanner */}
+        {/* Tab 1: URL Scanner */}
         {activeTab === 'url' && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div className="space-y-2">
-              <label className="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold block">
-                Target URL or Domain
+              <label className="text-xs uppercase text-emerald-400 font-bold flex items-center gap-1.5">
+                <span>Target URL / Domain Endpoint</span>
               </label>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-2.5">
                 <div className="relative flex-1">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <LinkIcon className="w-4 h-4" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-emerald-500/70">
+                    <span className="text-xs font-bold">&gt;</span>
                   </div>
                   <input
                     type="text"
@@ -237,24 +317,24 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
                     onKeyDown={(e) => e.key === 'Enter' && !isScanning && handleUrlScan()}
                     placeholder="https://example.com/login"
                     disabled={isScanning}
-                    className="w-full pl-10 pr-4 py-3.5 rounded-lg bg-slate-950 border border-slate-700/80 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono text-sm transition-all shadow-inner"
+                    className="w-full pl-8 pr-3 py-2.5 rounded bg-[#080d0b] border border-emerald-900 text-emerald-100 placeholder-slate-600 focus:outline-none focus:border-emerald-400 text-xs"
                   />
                 </div>
 
                 <button
                   onClick={() => handleUrlScan()}
                   disabled={isScanning}
-                  className="px-6 py-3.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-sm tracking-wide transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                  className="px-5 py-2.5 rounded bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
                 >
                   {isScanning ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Scanning...</span>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Inspecting...</span>
                     </>
                   ) : (
                     <>
-                      <Search className="w-4 h-4" />
-                      <span>Analyze URL</span>
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Inspect URL</span>
                     </>
                   )}
                 </button>
@@ -262,9 +342,9 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
             </div>
 
             {/* Quick Demo Presets */}
-            <div className="space-y-2 pt-2">
-              <span className="text-[11px] font-mono text-slate-400 uppercase tracking-wider block">
-                Or Test Realistic Presets:
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[11px] text-slate-500 uppercase block font-semibold">
+                Test Telemetry Presets:
               </span>
               <div className="flex flex-wrap gap-2">
                 {DEMO_URLS.map((demo, idx) => (
@@ -276,7 +356,7 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
                       handleUrlScan(demo.url);
                     }}
                     disabled={isScanning}
-                    className="text-xs font-mono px-3 py-1.5 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700/80 transition-all text-left flex items-center gap-2 group cursor-pointer"
+                    className="text-[11px] px-2.5 py-1 rounded bg-[#090e0c] hover:bg-[#121c18] text-slate-300 hover:text-emerald-300 border border-emerald-950 hover:border-emerald-800 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <span
                       className={`w-1.5 h-1.5 rounded-full ${
@@ -295,19 +375,18 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
           </div>
         )}
 
-        {/* Scanner Form Tab 2: Email Analyzer */}
+        {/* Tab 2: Email Analyzer */}
         {activeTab === 'email' && (
           <div className="space-y-4">
-            {/* Quick Email Presets */}
-            <div className="flex items-center gap-2 flex-wrap pb-2 border-b border-slate-800/60">
-              <span className="text-xs font-mono text-slate-400 uppercase tracking-wider">Demo Scenarios:</span>
+            <div className="flex items-center gap-2 flex-wrap pb-2 border-b border-emerald-950 text-xs">
+              <span className="text-slate-500 uppercase font-semibold">Presets:</span>
               {DEMO_EMAILS.map((demo, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => loadDemoEmail(demo)}
                   disabled={isScanning}
-                  className="text-xs font-mono px-2.5 py-1 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 transition-all cursor-pointer"
+                  className="px-2.5 py-0.5 rounded bg-[#090e0c] hover:bg-[#121c18] text-slate-300 hover:text-emerald-300 border border-emerald-950 text-[11px] cursor-pointer"
                 >
                   {demo.label}
                 </button>
@@ -316,155 +395,232 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-slate-400 block mb-1">
-                  From: (Sender Display & Address)
+                <label className="text-[11px] uppercase text-emerald-400 block mb-1">
+                  From: (Sender Display &amp; Address)
                 </label>
                 <input
                   type="text"
                   value={emailFrom}
                   onChange={(e) => setEmailFrom(e.target.value)}
-                  placeholder="PayPal Security <security@paypal-account-notice.example>"
+                  placeholder="Security Team <security@paypal-notice.example>"
                   disabled={isScanning}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 rounded bg-[#080d0b] border border-emerald-900 text-emerald-100 placeholder-slate-600 text-xs focus:outline-none focus:border-emerald-400"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-mono uppercase tracking-wider text-slate-400 block mb-1">
-                  Reply-To: (Optional)
+                <label className="text-[11px] uppercase text-emerald-400 block mb-1">
+                  Reply-To: (Optional Mailbox)
                 </label>
                 <input
                   type="text"
                   value={emailReplyTo}
                   onChange={(e) => setEmailReplyTo(e.target.value)}
-                  placeholder="billing-drop@untrusted.xyz"
+                  placeholder="attacker-drop@external-domain.xyz"
                   disabled={isScanning}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3 py-2 rounded bg-[#080d0b] border border-emerald-900 text-emerald-100 placeholder-slate-600 text-xs focus:outline-none focus:border-emerald-400"
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-mono uppercase tracking-wider text-slate-400 block mb-1">
+              <label className="text-[11px] uppercase text-emerald-400 block mb-1">
                 Subject Line:
               </label>
               <input
                 type="text"
                 value={emailSubject}
                 onChange={(e) => setEmailSubject(e.target.value)}
-                placeholder="URGENT: Your account has been suspended"
+                placeholder="URGENT: Action Required - Account Suspended"
                 disabled={isScanning}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-cyan-500"
+                className="w-full px-3 py-2 rounded bg-[#080d0b] border border-emerald-900 text-emerald-100 placeholder-slate-600 text-xs focus:outline-none focus:border-emerald-400"
               />
             </div>
 
             <div>
-              <label className="text-xs font-mono uppercase tracking-wider text-slate-400 block mb-1">
-                Email Body: (Plain text or HTML)
+              <label className="text-[11px] uppercase text-emerald-400 block mb-1">
+                Email Body Text:
               </label>
               <textarea
                 value={emailBody}
                 onChange={(e) => setEmailBody(e.target.value)}
-                placeholder="Paste the email body here. PhishGuard will safely extract embedded hyperlinks, verify sender domains, and test urgency patterns without rendering executable code..."
-                rows={5}
+                placeholder="Paste message contents here. System will isolate hyperlinks, analyze domain mismatches, and flag social engineering keywords..."
+                rows={4}
                 disabled={isScanning}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-white placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-cyan-500 leading-relaxed resize-y"
+                className="w-full px-3 py-2 rounded bg-[#080d0b] border border-emerald-900 text-emerald-100 placeholder-slate-600 text-xs focus:outline-none focus:border-emerald-400 resize-y"
               />
             </div>
 
-            {/* Optional Received Headers */}
-            <div className="pt-1">
+            {/* Optional Headers */}
+            <div>
               <button
                 type="button"
                 onClick={() => setShowHeaders(!showHeaders)}
-                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-cyan-400 font-mono transition-colors"
+                className="text-[11px] text-slate-400 hover:text-emerald-400 flex items-center gap-1 cursor-pointer"
               >
-                <span>{showHeaders ? 'Hide Received Headers' : '+ Add Received Headers (Optional for SPF/DKIM verification)'}</span>
-                {showHeaders ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                <span>{showHeaders ? '[-] Hide RFC Headers' : '[+] Add Received Headers (SPF/DKIM inspection)'}</span>
               </button>
 
               {showHeaders && (
-                <div className="mt-2">
-                  <textarea
-                    value={emailHeaders}
-                    onChange={(e) => setEmailHeaders(e.target.value)}
-                    placeholder="Received: from mail.phishrelay.xyz ([198.51.100.12]); spf=fail; dkim=fail..."
-                    rows={2}
-                    disabled={isScanning}
-                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-mono text-[11px] focus:outline-none focus:border-cyan-500"
-                  />
-                </div>
+                <textarea
+                  value={emailHeaders}
+                  onChange={(e) => setEmailHeaders(e.target.value)}
+                  placeholder="Received: from mail.relay.org ([198.51.100.12]); spf=fail; dkim=fail..."
+                  rows={2}
+                  disabled={isScanning}
+                  className="w-full mt-2 px-3 py-1.5 rounded bg-[#080d0b] border border-emerald-900 text-slate-300 text-[11px] focus:outline-none focus:border-emerald-400"
+                />
               )}
             </div>
 
-            <div className="pt-3">
-              <button
-                onClick={() => handleEmailScan()}
-                disabled={isScanning}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-sm tracking-wide transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)] flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {isScanning ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analyzing Email...</span>
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-4 h-4" />
-                    <span>Analyze Email</span>
-                  </>
-                )}
-              </button>
+            <button
+              onClick={() => handleEmailScan()}
+              disabled={isScanning}
+              className="px-6 py-2.5 rounded bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              {isScanning ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Triage Email</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Tab 3: Email Leak & Breach Scanner (Requested Feature) */}
+        {activeTab === 'leak' && (
+          <div className="space-y-5">
+            <div className="p-3.5 rounded bg-[#080e0c] border border-emerald-500/20 text-xs space-y-1">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-bold uppercase">
+                <Database className="w-4 h-4" />
+                <span>Email Breach &amp; VirusTotal Exposure Checker</span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Checks if a target email address was exfiltrated in known stealer logs (RedLine, Lumma, Naz.API), combo lists, or credential breach dumps, and checks VirusTotal domain threat reputation.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs uppercase text-emerald-400 font-bold block">
+                Target Email Address to Check:
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-emerald-500/70">
+                    <span className="text-xs font-bold">&gt;</span>
+                  </div>
+                  <input
+                    type="email"
+                    value={leakEmailInput}
+                    onChange={(e) => setLeakEmailInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !isScanning && handleLeakScan()}
+                    placeholder="victim-executive@company.com"
+                    disabled={isScanning}
+                    className="w-full pl-8 pr-3 py-2.5 rounded bg-[#080d0b] border border-emerald-900 text-emerald-100 placeholder-slate-600 focus:outline-none focus:border-emerald-400 text-xs"
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleLeakScan()}
+                  disabled={isScanning}
+                  className="px-5 py-2.5 rounded bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Scanning Breaches...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Database className="w-3.5 h-3.5" />
+                      <span>Check Breaches &amp; VT</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Demo Presets for Leak Check */}
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[11px] text-slate-500 uppercase block font-semibold">
+                Test Breach Scenarios:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {DEMO_BREACH_EMAILS.map((demo, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setLeakEmailInput(demo.email);
+                      handleLeakScan(demo.email);
+                    }}
+                    disabled={isScanning}
+                    className="text-[11px] px-2.5 py-1 rounded bg-[#090e0c] hover:bg-[#121c18] text-slate-300 hover:text-emerald-300 border border-emerald-950 hover:border-emerald-800 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        demo.type.includes('Clean')
+                          ? 'bg-emerald-400'
+                          : demo.type.includes('High') || demo.type.includes('Critical')
+                          ? 'bg-rose-400'
+                          : 'bg-amber-400'
+                      }`}
+                    />
+                    <span>{demo.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Step-by-step Scanning Experience (Framer Motion) */}
+        {/* Terminal Execution Feedback (Framer Motion) */}
         <AnimatePresence>
           {isScanning && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-8 pt-6 border-t border-slate-800/80 space-y-4"
+              className="mt-6 pt-5 border-t border-emerald-950 space-y-3"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase text-cyan-400 font-bold flex items-center gap-2">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Analyzing Target Security Posture...
+              <div className="flex items-center justify-between text-xs text-emerald-400">
+                <span className="font-bold flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  PIPELINE EXECUTION IN PROGRESS...
                 </span>
-                <span className="text-xs font-mono text-slate-400">
-                  {Math.min(100, Math.round(((scanStep + 1) / 5) * 100))}%
-                </span>
+                <span>{Math.min(100, Math.round(((scanStep + 1) / 5) * 100))}%</span>
               </div>
 
-              <div className="space-y-2">
-                {scanStepsList.map((stepDesc, idx) => {
+              <div className="space-y-1.5 text-xs">
+                {currentSteps.map((stepDesc, idx) => {
                   const isDone = idx < scanStep;
                   const isCurrent = idx === scanStep;
                   return (
-                    <motion.div
+                    <div
                       key={idx}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.08 }}
-                      className={`flex items-center gap-3 p-2.5 rounded-lg border text-xs font-mono transition-all ${
+                      className={`flex items-center gap-2 p-2 rounded border ${
                         isDone
-                          ? 'bg-slate-950/80 border-cyan-900/60 text-cyan-300'
+                          ? 'bg-[#080e0c] border-emerald-900/60 text-emerald-400'
                           : isCurrent
-                          ? 'bg-slate-900 border-cyan-500/50 text-white shadow-[0_0_10px_rgba(34,211,238,0.15)]'
-                          : 'bg-slate-950/40 border-slate-800/60 text-slate-500'
+                          ? 'bg-[#0b1712] border-emerald-500/50 text-white'
+                          : 'bg-[#080d0b] border-emerald-950/40 text-slate-600'
                       }`}
                     >
                       {isDone ? (
-                        <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       ) : isCurrent ? (
-                        <Loader2 className="w-4 h-4 text-cyan-400 animate-spin shrink-0" />
+                        <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />
                       ) : (
-                        <div className="w-4 h-4 rounded-full border border-slate-700 shrink-0" />
+                        <div className="w-3.5 h-3.5 rounded-full border border-slate-700 shrink-0" />
                       )}
                       <span>{stepDesc}</span>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
@@ -475,4 +631,3 @@ export default function ScannerInterface({ initialTab = 'url' }: { initialTab?: 
     </div>
   );
 }
-

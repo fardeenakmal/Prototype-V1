@@ -2,12 +2,12 @@ export type SeverityLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO' | 'S
 
 export type RiskCategory = 'SAFE' | 'LOW_RISK' | 'MEDIUM_RISK' | 'HIGH_RISK' | 'CRITICAL';
 
-export type ScanType = 'URL' | 'EMAIL';
+export type ScanType = 'URL' | 'EMAIL' | 'EMAIL_LEAK';
 
 export interface SecurityIndicator {
   id: string;
   name: string;
-  category: 'domain' | 'url' | 'content' | 'virustotal' | 'reputation' | 'mismatch' | 'behavior';
+  category: 'domain' | 'url' | 'content' | 'virustotal' | 'reputation' | 'mismatch' | 'behavior' | 'breach';
   severity: SeverityLevel;
   description: string;
   technicalExplanation: string;
@@ -86,7 +86,7 @@ export interface URLAnalysisResult {
   type: 'URL';
   riskScore: number; // 0 - 100
   classification: RiskCategory;
-  confidence: number; // e.g. 0.89 (89%)
+  confidence: number;
   indicators: SecurityIndicator[];
   domainHeuristics: DomainHeuristics;
   urlHeuristics: UrlHeuristics;
@@ -120,7 +120,7 @@ export interface SenderAnalysis {
 export interface EmailAnalysisResult {
   id: string;
   type: 'EMAIL';
-  target: string; // Subject or sender summary
+  target: string;
   timestamp: string;
   from: string;
   fromDomain: string;
@@ -151,14 +151,48 @@ export interface EmailAnalysisResult {
   isDemo?: boolean;
 }
 
-export type ScanResult = URLAnalysisResult | EmailAnalysisResult;
+export interface BreachRecord {
+  name: string;
+  domain: string;
+  date: string;
+  dataExposed: string[];
+  severity: SeverityLevel;
+  description: string;
+  isVerified: boolean;
+}
+
+export interface EmailLeakResult {
+  id: string;
+  type: 'EMAIL_LEAK';
+  target: string;
+  email: string;
+  domain: string;
+  timestamp: string;
+  isLeaked: boolean;
+  breachCount: number;
+  breaches: BreachRecord[];
+  riskScore: number;
+  classification: RiskCategory;
+  confidence: number;
+  indicators: SecurityIndicator[];
+  virusTotal: VirusTotalResult;
+  recommendations: string[];
+  domainThreat: {
+    isMalicious: boolean;
+    isDisposable: boolean;
+    reputationScore: number;
+  };
+  isDemo?: boolean;
+}
+
+export type ScanResult = URLAnalysisResult | EmailAnalysisResult | EmailLeakResult;
 
 export interface RiskWeightsConfig {
-  vtWeight: number; // default 40
-  urlHeuristicsWeight: number; // default 30
-  domainWeight: number; // default 15
-  brandWeight: number; // default 10
-  otherWeight: number; // default 5
+  vtWeight: number;
+  urlHeuristicsWeight: number;
+  domainWeight: number;
+  brandWeight: number;
+  otherWeight: number;
 }
 
 export interface DashboardStats {
@@ -183,4 +217,3 @@ export interface DashboardStats {
   }[];
   recentScans: ScanResult[];
 }
-

@@ -1,6 +1,6 @@
 import React from 'react';
 import { RiskCategory } from '@/types/security';
-import { ShieldAlert, AlertTriangle, ShieldCheck, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, AlertOctagon } from 'lucide-react';
 
 interface RecommendationsCardProps {
   classification: RiskCategory;
@@ -17,7 +17,7 @@ export default function RecommendationsCard({
   const getHeader = () => {
     if (isHighOrCritical) {
       return {
-        title: 'Actionable SOC Response & Containment Protocol',
+        title: 'Actionable SOC Incident Response & Containment Protocol',
         badge: 'URGENT MITIGATION',
         border: 'border-rose-900/60 bg-rose-950/20',
         badgeStyle: 'bg-rose-950 text-rose-300 border-rose-700',
@@ -36,7 +36,7 @@ export default function RecommendationsCard({
       };
     }
     return {
-      title: 'Standard User Guidance',
+      title: 'Standard Security Guidance',
       badge: 'SAFE TARGET',
       border: 'border-emerald-900/50 bg-emerald-950/10',
       badgeStyle: 'bg-emerald-950 text-emerald-300 border-emerald-700',
@@ -49,30 +49,30 @@ export default function RecommendationsCard({
   const Icon = header.icon;
 
   return (
-    <div className={`p-5 rounded-xl border ${header.border} shadow-lg space-y-3`}>
+    <div className={`p-4 sm:p-5 rounded-xl border ${header.border} shadow-lg space-y-3 font-mono`}>
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className={`p-1.5 rounded bg-slate-950 border border-slate-800 ${header.iconColor}`}>
+        <div className="flex items-center gap-2">
+          <div className={`p-1 rounded bg-[#080d0b] border border-emerald-950 ${header.iconColor}`}>
             <Icon className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="font-semibold text-sm text-slate-100">{header.title}</h4>
-            <p className="text-xs text-slate-400">Recommended operational steps for users and analysts</p>
+            <h4 className="font-bold text-xs text-slate-100 uppercase">{header.title}</h4>
+            <p className="text-[11px] text-slate-400">Prescribed operational procedures for analysts &amp; endpoints</p>
           </div>
         </div>
 
-        <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${header.badgeStyle}`}>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${header.badgeStyle}`}>
           {header.badge}
         </span>
       </div>
 
-      <div className="space-y-2 pt-1">
+      <div className="space-y-1.5 pt-1">
         {recommendations.map((rec, idx) => (
           <div
             key={idx}
-            className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-900/80 border border-slate-800/80 text-xs text-slate-200"
+            className="flex items-start gap-2 p-2.5 rounded bg-[#080d0b] border border-emerald-950 text-xs text-slate-200"
           >
-            <span className="font-mono text-cyan-400 font-bold mt-0.5">›</span>
+            <span className="text-emerald-400 font-bold mt-0.2">&gt;</span>
             <span className="leading-relaxed">{rec}</span>
           </div>
         ))}
@@ -80,4 +80,3 @@ export default function RecommendationsCard({
     </div>
   );
 }
-
